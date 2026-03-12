@@ -1,0 +1,8 @@
+.seva-form{background:#f8fafc;padding:16px;border:1px solid #cbd5e1;margin:0 0 20px}
+.seva-form p{display:flex;flex-direction:column;margin:0 0 10px}
+.seva-form input,.seva-form textarea,.seva-form button{padding:10px}
+.seva-form button{background:#1d4ed8;color:#fff;border:none;cursor:pointer}
+.seva-portal-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.seva-scheme-list{list-style:none;padding:0}
+.seva-scheme-list li{padding:10px;background:#fff;border:1px solid #e2e8f0;margin-bottom:8px}
+@media(max-width:768px){.seva-portal-grid{grid-template-columns:1fr}}

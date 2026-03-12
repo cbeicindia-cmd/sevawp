@@ -1,0 +1,22 @@
+/*
+Theme Name: Seva Setu Theme
+Theme URI: https://example.com/seva-setu-theme
+Author: Seva Setu Kendra
+Description: Government-style responsive theme for SEVA SETU KENDRA.
+Version: 1.0.0
+*/
+
+:root{--primary:#0f4c81;--accent:#1d4ed8;--bg:#f1f5f9;--text:#0f172a}
+body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+.container{max-width:1200px;margin:0 auto;padding:0 16px}
+.site-header{background:var(--primary);color:#fff;padding:14px 0}
+.site-title{margin:0;font-size:28px}
+.tagline{margin:4px 0 0;opacity:.9}
+nav ul{display:flex;gap:14px;list-style:none;padding:0}
+nav a{color:#fff;text-decoration:none}
+.main-content{min-height:65vh;padding:25px 0}
+.hero{background:#fff;padding:24px;border-left:5px solid var(--accent)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.card{background:#fff;padding:18px;border:1px solid #cbd5e1}
+.site-footer{background:#0b2540;color:#fff;padding:16px 0;margin-top:30px}
+@media(max-width:768px){nav ul{flex-wrap:wrap}}
