@@ -23,7 +23,6 @@ class Seva_Setu_Platform {
         add_action('admin_post_seva_setu_agent_register', [$this, 'handle_agent_registration']);
         add_action('admin_post_nopriv_seva_setu_citizen_register', [$this, 'handle_citizen_registration']);
         add_action('admin_post_seva_setu_citizen_register', [$this, 'handle_citizen_registration']);
-        add_action('admin_post_nopriv_seva_setu_apply_scheme', [$this, 'handle_scheme_application']);
         add_action('admin_post_seva_setu_apply_scheme', [$this, 'handle_scheme_application']);
         add_filter('manage_gov_scheme_posts_columns', [$this, 'scheme_columns']);
         add_action('manage_gov_scheme_posts_custom_column', [$this, 'render_scheme_columns'], 10, 2);
@@ -149,6 +148,9 @@ class Seva_Setu_Platform {
         if (get_post_type($post_id) !== 'gov_scheme') {
             return;
         }
+        if (wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) {
+            return;
+        }
         if (!isset($_POST['seva_setu_scheme_nonce_field']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['seva_setu_scheme_nonce_field'])), 'seva_setu_scheme_nonce')) {
             return;
         }
@@ -162,6 +164,9 @@ class Seva_Setu_Platform {
 
     public function save_application_meta($post_id) {
         if (get_post_type($post_id) !== 'scheme_application') {
+            return;
+        }
+        if (wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) {
             return;
         }
         if (!isset($_POST['seva_setu_application_nonce_field']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['seva_setu_application_nonce_field'])), 'seva_setu_application_nonce')) {
@@ -313,6 +318,11 @@ class Seva_Setu_Platform {
             return '<p>Only approved agents can submit applications.</p>';
         }
 
+        $agent_status = get_user_meta(get_current_user_id(), 'agent_status', true);
+        if ($agent_status !== 'approved') {
+            return '<p>Your agent account is not approved yet. Current status: ' . esc_html($agent_status ?: 'pending') . '.</p>';
+        }
+
         ob_start();
         ?>
         <form class="seva-form" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" method="post">
@@ -398,8 +408,8 @@ class Seva_Setu_Platform {
                 $apps = get_posts([
                     'post_type' => 'scheme_application',
                     'numberposts' => 20,
-                    'meta_key' => '_seva_setu_citizen_name',
-                    'meta_value' => $user->display_name,
+                    'meta_key' => '_seva_setu_citizen_user_id',
+                    'meta_value' => (string) $user->ID,
                 ]);
             }
         }
@@ -430,6 +440,10 @@ class Seva_Setu_Platform {
         $password = sanitize_text_field(wp_unslash($_POST['password'] ?? ''));
         $full_name = sanitize_text_field(wp_unslash($_POST['full_name'] ?? ''));
 
+        if (empty($email) || !is_email($email) || empty($password) || empty($full_name)) {
+            wp_die('Please provide valid required fields.');
+        }
+
         $user_id = wp_create_user($email, $password, $email);
         if (is_wp_error($user_id)) {
             wp_die('Unable to create account.');
@@ -445,6 +459,14 @@ class Seva_Setu_Platform {
             update_user_meta($user_id, 'agent_' . $field, sanitize_text_field(wp_unslash($_POST[$field] ?? '')));
         }
 
+        if (!empty($_FILES['documents']['name'])) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            $upload = wp_handle_upload($_FILES['documents'], ['test_form' => false]);
+            if (empty($upload['error']) && !empty($upload['url'])) {
+                update_user_meta($user_id, 'agent_documents_url', esc_url_raw($upload['url']));
+            }
+        }
+
         wp_mail($email, 'Verify Your Seva Setu Agent Account', 'Please verify your email. (Integrate OTP and verification providers in production).');
         wp_safe_redirect(home_url('/become-agent/?registered=1'));
         exit;
@@ -458,6 +480,10 @@ class Seva_Setu_Platform {
         $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
         $password = wp_generate_password(12, true, true);
         $name = sanitize_text_field(wp_unslash($_POST['name'] ?? ''));
+
+        if (empty($email) || !is_email($email) || empty($name)) {
+            wp_die('Please provide valid required fields.');
+        }
 
         $user_id = wp_create_user($email, $password, $email);
         if (is_wp_error($user_id)) {
@@ -479,6 +505,10 @@ class Seva_Setu_Platform {
             wp_die('Unauthorized');
         }
 
+        if (get_user_meta(get_current_user_id(), 'agent_status', true) !== 'approved') {
+            wp_die('Only approved agents can submit applications.');
+        }
+
         if (!isset($_POST['seva_setu_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['seva_setu_nonce'])), 'seva_setu_apply_scheme')) {
             wp_die('Invalid request');
         }
@@ -488,6 +518,15 @@ class Seva_Setu_Platform {
         $documents = sanitize_text_field(wp_unslash($_POST['documents'] ?? ''));
         $fee = self::DEFAULT_SERVICE_FEE;
 
+        if (empty($citizen) || empty($scheme)) {
+            wp_die('Citizen and scheme names are required.');
+        }
+
+        $citizen_user = get_user_by('login', $citizen);
+        if (!$citizen_user) {
+            $citizen_user = get_user_by('email', $citizen);
+        }
+
         $post_id = wp_insert_post([
             'post_type' => 'scheme_application',
             'post_status' => 'publish',
@@ -495,6 +534,9 @@ class Seva_Setu_Platform {
         ]);
 
         update_post_meta($post_id, '_seva_setu_citizen_name', $citizen);
+        if ($citizen_user instanceof WP_User) {
+            update_post_meta($post_id, '_seva_setu_citizen_user_id', (string) $citizen_user->ID);
+        }
         update_post_meta($post_id, '_seva_setu_agent_name', wp_get_current_user()->display_name);
         update_post_meta($post_id, '_seva_setu_scheme_name', $scheme);
         update_post_meta($post_id, '_seva_setu_status', 'Submitted');

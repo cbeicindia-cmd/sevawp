@@ -30,7 +30,10 @@ Install and activate:
 
 ### Option B: WP-CLI script
 ```bash
+# If CSV is in repo root:
 wp eval-file scripts/import-schemes.php
+
+# If uploaded to wp-content/uploads, keep filename as schemes-3000.csv
 ```
 
 ## 6) Create Required Pages

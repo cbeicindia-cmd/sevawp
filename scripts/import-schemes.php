@@ -3,7 +3,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-$csv = ABSPATH . 'wp-content/uploads/schemes-3000.csv';
+if (!class_exists('WP_CLI')) {
+    return;
+}
+
+$csv = ABSPATH . 'data/schemes-3000.csv';
+if (!file_exists($csv)) {
+    $csv = ABSPATH . 'wp-content/uploads/schemes-3000.csv';
+}
 if (!file_exists($csv)) {
     WP_CLI::error('CSV not found: ' . $csv);
 }
